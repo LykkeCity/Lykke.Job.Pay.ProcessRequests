@@ -2,6 +2,7 @@
 using System.Net;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Bitcoint.Api.Client;
 using Common.Log;
 using Lykke.AzureRepositories;
 using Lykke.AzureRepositories.Azure.Tables;
@@ -9,6 +10,7 @@ using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
 using Lykke.Job.Pay.ProcessRequests.Core.Services;
 using Lykke.Job.Pay.ProcessRequests.Services;
+using Lykke.Pay.Service.StoreRequest.Client;
 using Lykke.Pay.Service.Wallets.Client;
 using Microsoft.Extensions.DependencyInjection;
 using NBitcoin.RPC;
@@ -55,36 +57,28 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
                 .As<IBitcoinAggRepository>()
                 .SingleInstance();
 
-            //var client = new RPCClient(
-            //    new NetworkCredential(_settings.Rpc.UserName,
-            //        _settings.Rpc.Password),
-            //    new Uri(_settings.Rpc.Url));
-            //builder.RegisterInstance(client)
-            //    .As<RPCClient>()
-            //    .SingleInstance();
+            var merchantPayRequestRepository =
+            new MerchantPayRequestRepository(
+                new AzureTableStorage<MerchantPayRequest>(_settings.Db.MerchantWalletConnectionString, "MerchantPayRequest", null));
 
-            //builder.RegisterType<PayWalletservice>()
-            //    .As<IPayWalletservice>()
-            //    .SingleInstance()
-            //    .WithParameter(TypedParameter.From(new Uri(_settings.Services.PayWalletServiceUrl))); ;
-
-            //builder.RegisterType<BitcoinBroadcast>()
-            //    .As<IBitcoinBroadcast>()
-            //    .As<IStartable>()
-            //    .SingleInstance();
-
-            builder.RegisterType<ProcessRequest>()
-                .As<IProcessRequest>()
+            builder.RegisterInstance(merchantPayRequestRepository)
+                .As<IMerchantPayRequestRepository>()
                 .SingleInstance();
 
+            builder.RegisterType<BitcoinApi>()
+                .As<IBitcoinApi>()
+                .SingleInstance()
+                .WithParameter(TypedParameter.From(new Uri(_settings.Services.BitcoinApiService)));
 
+            builder.RegisterType<LykkePayServiceStoreRequestMicroService>()
+                .As<ILykkePayServiceStoreRequestMicroService>()
+                .SingleInstance()
+                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceStoreRequestMicroService))); 
 
-           
+            
 
-        builder.Populate(_services);
+            builder.Populate(_services);
         }
-
-        private readonly IBitcoinAggRepository _bitcoinAggRepository;
 
 
     }

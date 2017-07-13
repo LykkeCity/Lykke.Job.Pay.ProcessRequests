@@ -43,6 +43,7 @@
     public class ServicesSettings
     {
         public string LykkePayServiceStoreRequestMicroService { get; set; }
+        public string BitcoinApiService { get; set; }
     }
 
     public class WalletBradcastRabbitSettings

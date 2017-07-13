@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
-using Lykke.Job.Pay.ProcessRequests.RequestFactory;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {

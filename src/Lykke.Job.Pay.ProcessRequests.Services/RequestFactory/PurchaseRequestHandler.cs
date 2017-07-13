@@ -1,11 +1,8 @@
-using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
-using Lykke.Pay.Service.StoreRequest.Client;
 
-namespace Lykke.Job.Pay.ProcessRequests.RequestFactory
+namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {
     class PurchaseRequestHandler : RequestHandler
     {

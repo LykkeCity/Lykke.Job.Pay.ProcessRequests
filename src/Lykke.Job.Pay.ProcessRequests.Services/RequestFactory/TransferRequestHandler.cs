@@ -3,21 +3,17 @@ using System.Net;
 using System.Threading.Tasks;
 using Bitcoint.Api.Client;
 using Bitcoint.Api.Client.Models;
-using Common.Log;
-using Lykke.AzureRepositories;
-using Lykke.AzureRepositories.Azure.Tables;
-using Lykke.AzureRepositories.Log;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
-using Lykke.Job.Pay.ProcessRequests.Services.RequestFactory;
 
-namespace Lykke.Job.Pay.ProcessRequests.RequestFactory
+namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {
     class TransferRequestHandler : RequestHandler
     {
         private readonly IBitcoinAggRepository _bitcoinRepo;
         private readonly IMerchantPayRequestRepository _merchantPayRequestRepository;
         private readonly IBitcoinApi _bitcoinApi;
+        
         public override async Task Handle()
         {
             
@@ -52,21 +48,25 @@ namespace Lykke.Job.Pay.ProcessRequests.RequestFactory
             await _merchantPayRequestRepository.SaveRequestAsync(MerchantPayRequest);
         }
 
-        public TransferRequestHandler(IMerchantPayRequest payRequest, AppSettings.ProcessRequestSettings settings) : base(payRequest, settings)
+        public TransferRequestHandler(IMerchantPayRequest payRequest, AppSettings.ProcessRequestSettings settings,
+            IBitcoinAggRepository bitcoinRepo, IMerchantPayRequestRepository merchantPayRequestRepository, IBitcoinApi bitcoinApi) : base(payRequest, settings)
         {
-            _bitcoinRepo =
-                new BitcoinAggRepository(
-                    new AzureTableStorage<BitcoinAggEntity>(
-                        settings.Db.MerchantWalletConnectionString, "BitcoinAgg",
-                        null),
-                    new AzureTableStorage<BitcoinHeightEntity>(
-                        settings.Db.MerchantWalletConnectionString, "BitcoinHeight",
-                        null));
-            _merchantPayRequestRepository =
-                new MerchantPayRequestRepository(
-                    new AzureTableStorage<MerchantPayRequest>(settings.Db.MerchantWalletConnectionString, "MerchantPayRequest", null));
+            _bitcoinRepo = bitcoinRepo;
+            _merchantPayRequestRepository = merchantPayRequestRepository;
+            _bitcoinApi = bitcoinApi;
+            //_bitcoinRepo =
+            //    new BitcoinAggRepository(
+            //        new AzureTableStorage<BitcoinAggEntity>(
+            //            settings.Db.MerchantWalletConnectionString, "BitcoinAgg",
+            //            null),
+            //        new AzureTableStorage<BitcoinHeightEntity>(
+            //            settings.Db.MerchantWalletConnectionString, "BitcoinHeight",
+            //            null));
+            //_merchantPayRequestRepository =
+            //    new MerchantPayRequestRepository(
+            //        new AzureTableStorage<MerchantPayRequest>(settings.Db.MerchantWalletConnectionString, "MerchantPayRequest", null));
 
-            _bitcoinApi = new BitcoinApi(new Uri("http://52.164.252.39/"));
+            //_bitcoinApi = new BitcoinApi(new Uri("http://52.164.252.39/"));
         }
 
        
