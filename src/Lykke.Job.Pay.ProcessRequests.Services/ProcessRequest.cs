@@ -16,7 +16,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
     // NOTE: This is job service class example
     public class ProcessRequest : IProcessRequest
     {
-        private static readonly string ComponentName = "Lykke.Job.Pay.ProcessRequests";
+        public static readonly string ComponentName = "Lykke.Job.Pay.ProcessRequests";
         private readonly ILog _log;
         private readonly AppSettings.ProcessRequestSettings _settings;
         private readonly ILykkePayServiceStoreRequestMicroService _storeClient;

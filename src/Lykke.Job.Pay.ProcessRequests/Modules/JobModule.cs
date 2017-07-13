@@ -10,6 +10,7 @@ using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
 using Lykke.Job.Pay.ProcessRequests.Core.Services;
 using Lykke.Job.Pay.ProcessRequests.Services;
+using Lykke.Pay.Service.GenerateAddress.Client;
 using Lykke.Pay.Service.StoreRequest.Client;
 using Lykke.Pay.Service.Wallets.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,9 +74,21 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
             builder.RegisterType<LykkePayServiceStoreRequestMicroService>()
                 .As<ILykkePayServiceStoreRequestMicroService>()
                 .SingleInstance()
-                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceStoreRequestMicroService))); 
+                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceStoreRequestMicroService)));
 
-            
+            builder.RegisterType<LykkePayServiceGenerateAddressMicroService>()
+                .As<ILykkePayServiceGenerateAddressMicroService>()
+                .SingleInstance()
+                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceGenerateAddressMicroService)));
+
+            builder.RegisterType<ProcessRequest>()
+                .As<IProcessRequest>()
+                .SingleInstance();
+
+            builder.RegisterType<BalanceChangeHandler>()
+                .As<IBalanceChangeHandler>()
+                .As<IStartable>()
+                .SingleInstance();
 
             builder.Populate(_services);
         }
