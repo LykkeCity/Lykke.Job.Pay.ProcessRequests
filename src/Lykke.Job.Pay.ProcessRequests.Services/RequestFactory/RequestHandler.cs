@@ -22,10 +22,9 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
         {
             switch (payRequest.MerchantPayRequestType)
             {
-                case MerchantPayRequestType.ExchangeTransfer:
-                    return new ExchangeTransferRequestHandler(payRequest, settings);
                 case MerchantPayRequestType.Purchase:
                     return new PurchaseRequestHandler(payRequest, settings);
+                case MerchantPayRequestType.ExchangeTransfer:
                 case MerchantPayRequestType.Transfer:
                     return new TransferRequestHandler(payRequest, settings, bitcoinRepo, merchantPayRequestRepository, bitcoinApi);
             }
