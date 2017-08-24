@@ -36,7 +36,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
                 await _merchantPayRequestRepository.SaveRequestAsync(MerchantPayRequest);
             }
 
-            var transaction = await _bitcoinRepo.GetWalletTransactionAsync(MerchantPayRequest.DestinationAddress, MerchantPayRequest.TransactionId);
+            var transaction = string.IsNullOrEmpty(MerchantPayRequest.TransactionId) ? null : await _bitcoinRepo.GetWalletTransactionAsync(MerchantPayRequest.DestinationAddress, MerchantPayRequest.TransactionId);
 
             if (transaction == null)
             {
