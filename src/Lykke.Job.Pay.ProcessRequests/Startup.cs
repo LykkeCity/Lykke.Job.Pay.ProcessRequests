@@ -52,14 +52,12 @@ namespace Lykke.Job.Pay.ProcessRequests
             });
 
             var builder = new ContainerBuilder();
-#if DEBUG
-            var appSettings = Configuration.Get<AppSettings>();
-#else
-            var appSettings = HttpSettingsLoader.Load<AppSettings>(Configuration.GetValue<string>("SettingsUrl"));
-#endif
+
+            var appSettings = Configuration.LoadSettings<AppSettings>();
+
             var log = CreateLogWithSlack(services, appSettings);
 
-            builder.RegisterModule(new JobModule(appSettings.ProcessRequestJob, log));
+            builder.RegisterModule(new JobModule(appSettings.CurrentValue.ProcessRequestJob, log));
 
             builder.AddTriggers();
 
@@ -77,11 +75,29 @@ namespace Lykke.Job.Pay.ProcessRequests
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseLykkeMiddleware("BitcoinTransactionAggregator", ex => new ErrorResponse { ErrorMessage = "Technical problem" });
+            app.UseLykkeMiddleware("Process Request", ex => new ErrorResponse { ErrorMessage = "Technical problem" });
 
             app.UseMvc();
-            app.UseSwagger();
-            app.UseSwaggerUi();
+
+            app.UseSwagger(c =>
+
+            {
+
+                c.PreSerializeFilters.Add((swagger, httpReq) => swagger.Host = httpReq.Host.Value);
+
+            });
+
+            app.UseSwaggerUI(x =>
+
+            {
+
+                x.RoutePrefix = "swagger/ui";
+
+                x.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+
+            });
+
+            app.UseStaticFiles();
 
             appLifetime.ApplicationStopped.Register(() =>
             {
@@ -89,40 +105,80 @@ namespace Lykke.Job.Pay.ProcessRequests
             });
         }
 
-        private static ILog CreateLogWithSlack(IServiceCollection services, AppSettings settings)
+        private static ILog CreateLogWithSlack(IServiceCollection services, IReloadingManager<AppSettings> appSettings)
+
         {
-            LykkeLogToAzureStorage logToAzureStorage = null;
 
-            var logToConsole = new LogToConsole();
-            var logAggregate = new LogAggregate();
+            var consoleLogger = new LogToConsole();
 
-            logAggregate.AddLogger(logToConsole);
+            var aggregateLogger = new AggregateLogger();
 
-            var dbLogConnectionString = settings.ProcessRequestJob.Db.LogsConnString;
 
-            // Creating azure storage logger, which logs own messages to concole log
-            if (!string.IsNullOrEmpty(dbLogConnectionString) && !(dbLogConnectionString.StartsWith("${") && dbLogConnectionString.EndsWith("}")))
-            {
-                logToAzureStorage = new LykkeLogToAzureStorage("Lykke.Job.Pay.ProcessRequests", new AzureTableStorage<LogEntity>(
-                    dbLogConnectionString, "BitcoinTransactionAggregatorLog", logToConsole));
 
-                logAggregate.AddLogger(logToAzureStorage);
-            }
+            aggregateLogger.AddLog(consoleLogger);
 
-            // Creating aggregate log, which logs to console and to azure storage, if last one specified
-            var log = logAggregate.CreateLogger();
+
 
             // Creating slack notification service, which logs own azure queue processing messages to aggregate log
+
             var slackService = services.UseSlackNotificationsSenderViaAzureQueue(new AzureQueueIntegration.AzureQueueSettings
+
             {
-                ConnectionString = settings.SlackNotifications.AzureQueue.ConnectionString,
-                QueueName = settings.SlackNotifications.AzureQueue.QueueName
-            }, log);
 
-            // Finally, setting slack notification for azure storage log, which will forward necessary message to slack service
-            logToAzureStorage?.SetSlackNotification(slackService);
+                ConnectionString = appSettings.CurrentValue.ProcessRequestJob.Db.LogsConnString,
 
-            return log;
+                QueueName = appSettings.CurrentValue.SlackNotifications.AzureQueue.QueueName
+
+            }, aggregateLogger);
+
+
+
+            var dbLogConnectionStringManager = appSettings.Nested(x => x.ProcessRequestJob.Db.LogsConnString);
+
+            var dbLogConnectionString = dbLogConnectionStringManager.CurrentValue;
+
+
+
+            // Creating azure storage logger, which logs own messages to concole log
+
+            if (!string.IsNullOrEmpty(dbLogConnectionString) && !(dbLogConnectionString.StartsWith("${") && dbLogConnectionString.EndsWith("}")))
+
+            {
+
+                var persistenceManager = new LykkeLogToAzureStoragePersistenceManager(
+
+                    AzureTableStorage<LogEntity>.Create(dbLogConnectionStringManager, "BitcoinTransactionAggregatorLog", consoleLogger),
+
+                    consoleLogger);
+
+
+
+                var slackNotificationsManager = new LykkeLogToAzureSlackNotificationsManager(slackService, consoleLogger);
+
+
+
+                var azureStorageLogger = new LykkeLogToAzureStorage(
+
+                    persistenceManager,
+
+                    slackNotificationsManager,
+
+                    consoleLogger);
+
+
+
+                azureStorageLogger.Start();
+
+
+
+                aggregateLogger.AddLog(azureStorageLogger);
+
+            }
+
+
+
+            return aggregateLogger;
+
         }
     }
 }

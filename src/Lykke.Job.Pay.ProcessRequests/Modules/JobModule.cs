@@ -66,6 +66,14 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
                 .As<IMerchantPayRequestRepository>()
                 .SingleInstance();
 
+            var merchantOrderRequestRepository =
+                new MerchantOrderRequestRepository(
+                    new AzureTableStorage<MerchantOrderRequest>(_settings.Db.MerchantWalletConnectionString, "MerchantOrderRequest", null));
+
+            builder.RegisterInstance(merchantOrderRequestRepository)
+                .As<IMerchantOrderRequestRepository>()
+                .SingleInstance();
+
             builder.RegisterType<BitcoinApi>()
                 .As<IBitcoinApi>()
                 .SingleInstance()
@@ -85,10 +93,10 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
                 .As<IProcessRequest>()
                 .SingleInstance();
 
-            builder.RegisterType<BalanceChangeHandler>()
-                .As<IBalanceChangeHandler>()
-                .As<IStartable>()
-                .SingleInstance();
+            //builder.RegisterType<BalanceChangeHandler>()
+            //    .As<IBalanceChangeHandler>()
+            //    .As<IStartable>()
+            //    .SingleInstance();
 
             builder.Populate(_services);
         }

@@ -1,7 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Bitcoint.Api.Client;
+using Common.Log;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
+using Lykke.Pay.Service.GenerateAddress.Client;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {
@@ -23,7 +25,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
             switch (payRequest.MerchantPayRequestType)
             {
                 case MerchantPayRequestType.Purchase:
-                    return new PurchaseRequestHandler(payRequest, settings);
+                   // return new PurchaseRequestHandler(payRequest, settings);
                 case MerchantPayRequestType.ExchangeTransfer:
                 case MerchantPayRequestType.Transfer:
                     return new TransferRequestHandler(payRequest, settings, bitcoinRepo, merchantPayRequestRepository, bitcoinApi);
@@ -34,5 +36,10 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 
         public abstract Task Handle();
 
+        internal static IRequestHandler Create(IMerchantOrderRequest order, AppSettings.ProcessRequestSettings settings,
+            IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log)
+        {
+            return new OrderRequestHandler(order, settings, merchantOrderRequestRepository, generateAddressMicroService, log);
+        }
     }
 }

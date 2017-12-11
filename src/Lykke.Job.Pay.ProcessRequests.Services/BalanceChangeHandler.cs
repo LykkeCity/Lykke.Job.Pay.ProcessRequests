@@ -10,6 +10,7 @@ using Lykke.Job.Pay.ProcessRequests.Services.RabbitMq;
 using Lykke.Pay.Service.GenerateAddress.Client;
 using Lykke.Pay.Service.GenerateAddress.Client.Models;
 using Lykke.Pay.Service.StoreRequest.Client.Models;
+using Lykke.RabbitMqBroker;
 using Lykke.RabbitMqBroker.Subscriber;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services
@@ -32,18 +33,22 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
         {
             try
             {
-                _subscriber = new RabbitMqSubscriber<WalletMqModel>(new RabbitMqSubscriberSettings
-                    {
-                        ConnectionString = _settings.WalletBroadcastRabbit.ConnectionString,
-                        QueueName = $"{_settings.WalletBroadcastRabbit.ExchangeName}.balancehandler",
-                        ExchangeName = _settings.WalletBroadcastRabbit.ExchangeName,
-                        IsDurable = true
-                    })
-                    .SetMessageDeserializer(new JsonMessageDeserializer<WalletMqModel>())
+
+                var settings = RabbitMqSubscriptionSettings
+                    .CreateForSubscriber(_settings.WalletBroadcastRabbit.ConnectionString,
+                        _settings.WalletBroadcastRabbit.ExchangeName, "balancehandler");
+                settings.IsDurable = true;
+                _subscriber = new RabbitMqSubscriber<WalletMqModel>(settings,
+                        new ResilientErrorHandlingStrategy(_log, settings,
+                            retryTimeout: TimeSpan.FromSeconds(10),
+                            next: new DeadQueueErrorHandlingStrategy(_log, settings)))
+                    .SetMessageDeserializer(new RabbitMq.JsonMessageDeserializer<WalletMqModel>())
                     .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
                     .Subscribe(ProcessWalletAsync)
                     .SetLogger(_log)
                     .Start();
+
+               
             }
             catch (Exception ex)
             {
