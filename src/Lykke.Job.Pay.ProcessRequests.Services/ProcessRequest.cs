@@ -58,11 +58,17 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
             var json = await response.Response.Content.ReadAsStringAsync();
             var requests = JsonConvert.DeserializeObject<List<MerchantPayRequest>>(json);
 
+            await _log.WriteInfoAsync(ComponentName, "Process requests", null,
+                $"Process requests");
+
             foreach (var request in requests)
             {
                 var handler = RequestHandler.Create(request, _settings, _bitcoinRepo, _merchantPayRequestRepository, _bitcoinApi);
                 await handler.Handle();
             }
+
+            await _log.WriteInfoAsync(ComponentName, "Process requests", null,
+                $"Order requests");
 
             var orderStr = await _storeClient.ApiStoreOrderGetWithHttpMessagesAsync();
             json = await orderStr.Response.Content.ReadAsStringAsync();
