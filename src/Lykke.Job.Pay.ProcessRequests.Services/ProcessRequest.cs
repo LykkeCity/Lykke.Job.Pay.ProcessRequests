@@ -51,7 +51,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
         {
 
             await _log.WriteInfoAsync(ComponentName, "Process started", null,
-                $"ProcessAsync rised");
+                $"ProcessAsync is rised");
 
            
             var response = await _storeClient.ApiStoreGetWithHttpMessagesAsync();
