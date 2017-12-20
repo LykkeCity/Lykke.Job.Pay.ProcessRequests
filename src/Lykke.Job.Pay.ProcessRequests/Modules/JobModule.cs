@@ -14,6 +14,7 @@ using Lykke.Pay.Service.GenerateAddress.Client;
 using Lykke.Pay.Service.StoreRequest.Client;
 using Lykke.Pay.Service.Wallets.Client;
 using Microsoft.Extensions.DependencyInjection;
+using NBitcoin;
 using NBitcoin.RPC;
 
 namespace Lykke.Job.Pay.ProcessRequests.Modules
@@ -91,6 +92,14 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 
             builder.RegisterType<ProcessRequest>()
                 .As<IProcessRequest>()
+                .SingleInstance();
+
+            var client = new RPCClient(
+                new NetworkCredential(_settings.Rpc.UserName,
+                    _settings.Rpc.Password),
+                new Uri(_settings.Rpc.Url), Network.GetNetwork(_settings.Rpc.Network));
+            builder.RegisterInstance(client)
+                .As<RPCClient>()
                 .SingleInstance();
 
             //builder.RegisterType<BalanceChangeHandler>()

@@ -12,76 +12,114 @@ using Lykke.Common.Entities.Pay;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
 using Lykke.Pay.Service.GenerateAddress.Client;
+using NBitcoin;
+using NBitcoin.RPC;
 using Newtonsoft.Json;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {
     public class OrderRequestHandler : IRequestHandler
     {
-        private readonly IMerchantOrderRequest _order;
+        private readonly MerchantOrderAddress _address;
         private readonly AppSettings.ProcessRequestSettings _settings;
         private readonly IMerchantOrderRequestRepository _merchantOrderRequestRepository;
         private readonly ILykkePayServiceGenerateAddressMicroService _generateAddressMicroService;
         private readonly ILog _log;
         private readonly string _contextName = "Order Request handle";
+        private readonly IBitcoinAggRepository _bitcoinAggRepository;
+        private readonly RPCClient _rpcClient;
 
-        public OrderRequestHandler(IMerchantOrderRequest order, AppSettings.ProcessRequestSettings settings, IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log)
+        public OrderRequestHandler(MerchantOrderAddress address, AppSettings.ProcessRequestSettings settings, IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log, IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient)
         {
-            _order = order;
+            _address = address;
             _settings = settings;
             _merchantOrderRequestRepository = merchantOrderRequestRepository;
             _generateAddressMicroService = generateAddressMicroService;
             _log = log;
+            _bitcoinAggRepository = bitcoinAggRepository;
+            _rpcClient = rpcClient;
         }
 
         public async Task Handle()
         {
             try
             {
+                if (_address.Orders.Any(o => o.MerchantPayRequestStatus != MerchantPayRequestStatus.InProgress))
+                {
+                    
+                    return;
+                }
                 var amount = await GetWalletAmount();
-                if (amount > 0)
+                if (Math.Abs(amount) <  0.00000001)
                 {
                     return;
                 }
 
-                var orderDate = ParseOrderDate();
-                if (amount.BtcEqualTo(_order.Amount) && orderDate.ToUniversalTime() < DateTime.UtcNow)
+                await _log.WriteInfoAsync($"Handle {_address.Address} orders", _contextName, null);
+
+                var transactions = (await _bitcoinAggRepository.GetWalletTransactionsAsync(_address.Address)).ToList();
+                var transaction = transactions.FirstOrDefault();
+                
+                bool isError = true;
+                if (transaction != null && transactions.Count == 1)
                 {
-                    _order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Success;
-                    _order.MerchantPayRequestStatus = MerchantPayRequestStatus.Completed;
-                    await _log.WriteInfoAsync($"Proceed  {_order.RequestId} order. Success", _contextName, null);
+                    await _log.WriteInfoAsync($"Transaction {transaction.TransactionId} was found in {transaction.BlockNumber} block", _contextName, null);
+                    var block = await _rpcClient.GetBlockAsync(transaction.BlockNumber);
+                    if (block != null)
+                    {
+                        var order = _address.Orders.FirstOrDefault(o => o.TransactionWaitingTime.GetRepoDateTime() >
+                                                                        block.Header.BlockTime.LocalDateTime);
+                        if (order != null)
+                        {
+                            await _log.WriteInfoAsync($"Handle {order.OrderId} order", _contextName, null);
+                            order.TransactionId = transaction.TransactionId;
+                            order.TransactionDetectionTime = block.Header.BlockTime.LocalDateTime.RepoDateStr();
+                            if (order.Amount.BtcEqualTo(transaction.Amount))
+                            {
+                                await _log.WriteInfoAsync("Amounts are equal", _contextName, null);
+                                isError = false;
+                            }
+
+                            order.MerchantPayRequestStatus =
+                                isError ? MerchantPayRequestStatus.Failed : MerchantPayRequestStatus.Completed;
+                            order.MerchantPayRequestNotification |= isError ? MerchantPayRequestNotification.Error : MerchantPayRequestNotification.Success;
+                            order.ETag = "*";
+                            await _merchantOrderRequestRepository.SaveRequestAsync(order);
+                        }
+                        
+                    }
                 }
-                else
-                {
-                    _order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Error;
-                    _order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
-                    await _log.WriteInfoAsync($"Proceed  {_order.RequestId} order. Error with amount or date", _contextName, null);
-                }
+
             }
             catch (Exception e)
             {
-                _order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Error;
-                _order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
-                await _log.WriteErrorAsync($"Can't proceed {_order.RequestId} order. Exception.", _contextName, e);
+                
+                await _log.WriteErrorAsync($"Can't proceed {_address.Address} orders. Exception.", _contextName, e);
             }
             
 
-            await _merchantOrderRequestRepository.SaveRequestAsync(_order);
+           
         }
 
-        private DateTime ParseOrderDate()
-        {
-            return DateTime.Parse(_order.TransactionWaitingTime, CultureInfo.InvariantCulture);
-        }
+     
 
         private async Task<double> GetWalletAmount()
         {
-            var walletResult = await _generateAddressMicroService.ApiWalletByMerchantIdGetWithHttpMessagesAsync(_order.MerchantId);
-            var res = (from w in walletResult.Body
-                where _order.SourceAddress.Equals(w.WalletAddress, StringComparison.CurrentCultureIgnoreCase)
-                select w.Amount).First();
+            var walletResult = await _generateAddressMicroService.ApiWalletByMerchantIdGetWithHttpMessagesAsync(_address.Orders.First().MerchantId);
+            try
+            {
+                var res = (from w in walletResult.Body
+                    where _address.Address.Equals(w.WalletAddress, StringComparison.CurrentCultureIgnoreCase)
+                    select w.Amount).First();
+                return res.Value;
+            }
+            catch
+            {
+                return 0;
+            }
+            
 
-            return res.Value;
+            
         }
 
       

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Bitcoint.Api.Client;
@@ -11,6 +10,7 @@ using Lykke.Job.Pay.ProcessRequests.Core;
 using Lykke.Job.Pay.ProcessRequests.Services.RequestFactory;
 using Lykke.Pay.Service.GenerateAddress.Client;
 using Lykke.Pay.Service.StoreRequest.Client;
+using NBitcoin.RPC;
 using Newtonsoft.Json;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services
@@ -28,11 +28,13 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
         private readonly IBitcoinApi _bitcoinApi;
         private readonly IMerchantOrderRequestRepository _merchantOrderRequestRepository;
         private readonly ILykkePayServiceGenerateAddressMicroService _generateAddressMicroService;
-
+        private readonly IBitcoinAggRepository _bitcoinAggRepository;
+        private readonly RPCClient _rpcClient;
 
         public ProcessRequest(AppSettings.ProcessRequestSettings settings, ILog log, ILykkePayServiceStoreRequestMicroService storeClient,
             IBitcoinAggRepository bitcoinRepo, IMerchantPayRequestRepository merchantPayRequestRepository, IBitcoinApi bitcoinApi,
-            IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService)
+            IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService,
+            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient)
         {
             _log = log;
             _storeClient = storeClient;
@@ -42,6 +44,8 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
             _bitcoinApi = bitcoinApi;
             _merchantOrderRequestRepository = merchantOrderRequestRepository;
             _generateAddressMicroService = generateAddressMicroService;
+            _bitcoinAggRepository = bitcoinAggRepository;
+            _rpcClient = rpcClient;
         }
         public async Task ProcessAsync()
         {
@@ -63,10 +67,14 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
             var orderStr = await _storeClient.ApiStoreOrderGetWithHttpMessagesAsync();
             json = await orderStr.Response.Content.ReadAsStringAsync();
             var orders = JsonConvert.DeserializeObject<List<MerchantOrderRequest>>(json);
-
-            foreach (var order in orders.Where(o=>o.MerchantPayRequestStatus == MerchantPayRequestStatus.InProgress))
+            var addresses = from o in orders
+                group o by o.SourceAddress
+                into go
+                select new MerchantOrderAddress(go.Key, go.OrderBy(o=>o.TransactionWaitingTime.GetRepoDateTime()).ToList());
+            foreach (var address in addresses)
             {
-                var handler = RequestHandler.Create(order, _settings, _merchantOrderRequestRepository, _generateAddressMicroService, _log);
+                var handler = RequestHandler.Create(address, _settings, _merchantOrderRequestRepository, _generateAddressMicroService, _log,
+                    _bitcoinAggRepository, _rpcClient);
                 await handler.Handle();
             }
 

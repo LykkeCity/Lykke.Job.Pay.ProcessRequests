@@ -10,6 +10,7 @@
             public DbSettings Db { get; set; }
             public ServicesSettings Services { get; set; }
             public WalletBradcastRabbitSettings WalletBroadcastRabbit { get; set; }
+            public RpcSettings Rpc { get; set; }
         }
 
         public class DbSettings
@@ -39,6 +40,14 @@
         public string LykkePayServiceStoreRequestMicroService { get; set; }
         public string BitcoinApiService { get; set; }
         public string LykkePayServiceGenerateAddressMicroService { get; set; }
+    }
+
+    public class RpcSettings
+    {
+        public string UserName { get; set; }
+        public string Password { get; set; }
+        public string Url { get; set; }
+        public string Network { get; set; }
     }
 
     public class WalletBradcastRabbitSettings

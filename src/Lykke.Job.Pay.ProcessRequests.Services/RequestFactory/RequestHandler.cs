@@ -4,6 +4,7 @@ using Common.Log;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
 using Lykke.Pay.Service.GenerateAddress.Client;
+using NBitcoin.RPC;
 
 namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 {
@@ -36,10 +37,11 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 
         public abstract Task Handle();
 
-        internal static IRequestHandler Create(IMerchantOrderRequest order, AppSettings.ProcessRequestSettings settings,
-            IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log)
+        internal static IRequestHandler Create(MerchantOrderAddress address, AppSettings.ProcessRequestSettings settings,
+            IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log,
+            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient)
         {
-            return new OrderRequestHandler(order, settings, merchantOrderRequestRepository, generateAddressMicroService, log);
+            return new OrderRequestHandler(address, settings, merchantOrderRequestRepository, generateAddressMicroService, log, bitcoinAggRepository, rpcClient);
         }
     }
 }
