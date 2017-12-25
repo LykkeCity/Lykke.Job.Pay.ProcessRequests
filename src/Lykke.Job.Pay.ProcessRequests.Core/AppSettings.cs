@@ -11,6 +11,7 @@
             public ServicesSettings Services { get; set; }
             public WalletBradcastRabbitSettings WalletBroadcastRabbit { get; set; }
             public RpcSettings Rpc { get; set; }
+            public int NumberOfConfirmations { get; set; }
         }
 
         public class DbSettings

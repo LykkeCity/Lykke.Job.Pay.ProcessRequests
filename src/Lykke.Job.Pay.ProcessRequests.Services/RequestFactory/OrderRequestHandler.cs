@@ -11,6 +11,7 @@ using Common.Log;
 using Lykke.Common.Entities.Pay;
 using Lykke.Core;
 using Lykke.Job.Pay.ProcessRequests.Core;
+using Lykke.Pay.Common;
 using Lykke.Pay.Service.GenerateAddress.Client;
 using NBitcoin;
 using NBitcoin.RPC;
@@ -44,51 +45,107 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
         {
             try
             {
-                if (_address.Orders.Any(o => o.MerchantPayRequestStatus != MerchantPayRequestStatus.InProgress))
-                {
-                    
-                    return;
-                }
-                var amount = await GetWalletAmount();
-                if (Math.Abs(amount) <  0.00000001)
+                if (_address.Orders.Any(o => o.MerchantPayRequestStatus != MerchantPayRequestStatus.InProgress &&
+                                             o.MerchantPayRequestStatus != MerchantPayRequestStatus.New))
                 {
                     return;
                 }
-
                 await _log.WriteInfoAsync($"Handle {_address.Address} orders", _contextName, null);
-
-                var transactions = (await _bitcoinAggRepository.GetWalletTransactionsAsync(_address.Address)).ToList();
-                var transaction = transactions.FirstOrDefault();
-                
-                bool isError = true;
-                if (transaction != null && transactions.Count == 1)
+                if (_address.Orders.Any(o => o.MerchantPayRequestStatus == MerchantPayRequestStatus.New))
                 {
-                    await _log.WriteInfoAsync($"Transaction {transaction.TransactionId} was found in {transaction.BlockNumber} block", _contextName, null);
-                    var block = await _rpcClient.GetBlockAsync(transaction.BlockNumber);
-                    if (block != null)
+                    var amount = await GetWalletAmount();
+                    if (Math.Abs(amount) < 0.00000001)
                     {
-                        var order = _address.Orders.FirstOrDefault(o => o.TransactionWaitingTime.GetRepoDateTime() >
-                                                                        block.Header.BlockTime.LocalDateTime);
-                        if (order != null)
+                        return;
+                    }
+
+                    await _log.WriteInfoAsync($"Handle {_address.Address} orders", _contextName, null);
+
+                    var transactions =
+                        (await _bitcoinAggRepository.GetWalletTransactionsAsync(_address.Address)).ToList();
+                    var transaction = transactions.FirstOrDefault();
+
+                    bool isError = true;
+                    if (transaction != null && transactions.Count == 1)
+                    {
+                        await _log.WriteInfoAsync(
+                            $"Transaction {transaction.TransactionId} was found in {transaction.BlockNumber} block",
+                            _contextName, null);
+                        var block = await _rpcClient.GetBlockAsync(transaction.BlockNumber);
+                        if (block != null)
                         {
-                            await _log.WriteInfoAsync($"Handle {order.OrderId} order", _contextName, null);
-                            order.TransactionId = transaction.TransactionId;
-                            order.TransactionDetectionTime = block.Header.BlockTime.LocalDateTime.RepoDateStr();
-                            if (order.Amount.BtcEqualTo(transaction.Amount))
+                            var order = _address.Orders.FirstOrDefault(o => o.TransactionWaitingTime.GetRepoDateTime() >
+                                                                            block.Header.BlockTime.LocalDateTime);
+                            if (order != null)
                             {
-                                await _log.WriteInfoAsync("Amounts are equal", _contextName, null);
-                                isError = false;
+                                await _log.WriteInfoAsync($"Handle {order.OrderId} order", _contextName, null);
+                                order.TransactionId = transaction.TransactionId;
+                                order.TransactionDetectionTime = block.Header.BlockTime.LocalDateTime.RepoDateStr();
+                                if (order.Amount.BtcEqualTo(transaction.Amount))
+                                {
+                                    await _log.WriteInfoAsync("Amounts are equal", _contextName, null);
+                                    order.TransactionStatus = InvoiceStatus.InProgress.ToString();
+                                    isError = false;
+                                }
+                                else
+                                {
+                                    order.TransactionStatus =
+                                    (order.Amount < transaction.Amount
+                                        ? InvoiceStatus.Overpaid
+                                        : InvoiceStatus.Underpaid).ToString();
+                                }
+
+                                order.MerchantPayRequestStatus =
+                                    isError ? MerchantPayRequestStatus.Failed : MerchantPayRequestStatus.InProgress;
+                                order.MerchantPayRequestNotification |=
+                                    isError
+                                        ? MerchantPayRequestNotification.Error
+                                        : MerchantPayRequestNotification.InProgress;
+                                order.ETag = "*";
+                                await _merchantOrderRequestRepository.SaveRequestAsync(order);
                             }
 
-                            order.MerchantPayRequestStatus =
-                                isError ? MerchantPayRequestStatus.Failed : MerchantPayRequestStatus.Completed;
-                            order.MerchantPayRequestNotification |= isError ? MerchantPayRequestNotification.Error : MerchantPayRequestNotification.Success;
+                        }
+                    }
+                    else
+                    {
+                        var order = _address.Orders.First();
+                        if (_address.Orders.First().TransactionWaitingTime.GetRepoDateTime() < DateTime.Now)
+                        {
+                            order.TransactionStatus = InvoiceStatus.LatePaid.ToString();
+                            order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
                             order.ETag = "*";
                             await _merchantOrderRequestRepository.SaveRequestAsync(order);
                         }
-                        
                     }
                 }
+                else
+                {
+                    var transactions =
+                        (await _bitcoinAggRepository.GetWalletTransactionsAsync(_address.Address)).ToList();
+                    var transaction = transactions.FirstOrDefault();
+
+                    if (transaction != null && transactions.Count == 1)
+                    {
+
+                        await _log.WriteInfoAsync(
+                            $"Transaction {transaction.TransactionId} was found in {transaction.BlockNumber} block",
+                            _contextName, null);
+
+                        var blocks = _rpcClient.GetBlockCount();
+                        var order = _address.Orders.First(
+                            o => o.MerchantPayRequestStatus == MerchantPayRequestStatus.InProgress);
+                        if (blocks - transaction.BlockNumber >= _settings.NumberOfConfirmations)
+                        {
+                            
+                            order.TransactionStatus = InvoiceStatus.Paid.ToString();
+                        }
+                       
+                        order.MerchantPayRequestStatus = MerchantPayRequestStatus.Completed;
+                        order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Success;
+                    }
+                }
+                
 
             }
             catch (Exception e)
