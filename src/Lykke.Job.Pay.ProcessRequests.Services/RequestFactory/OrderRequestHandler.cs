@@ -139,12 +139,13 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
                         {
                             
                             order.TransactionStatus = InvoiceStatus.Paid.ToString();
+                            order.MerchantPayRequestStatus = MerchantPayRequestStatus.Completed;
+                            order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Success;
+                            order.ETag = "*";
+                            await _merchantOrderRequestRepository.SaveRequestAsync(order);
                         }
                        
-                        order.MerchantPayRequestStatus = MerchantPayRequestStatus.Completed;
-                        order.MerchantPayRequestNotification |= MerchantPayRequestNotification.Success;
-                        order.ETag = "*";
-                        await _merchantOrderRequestRepository.SaveRequestAsync(order);
+                        
                     }
                 }
                 
