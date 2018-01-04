@@ -48,7 +48,7 @@ namespace Lykke.Job.Pay.ProcessRequests
 
             services.AddSwaggerGen(options =>
             {
-                options.DefaultLykkeConfiguration("v1", "BitcoinTransactionAggregator API");
+                options.DefaultLykkeConfiguration("v1", "Process Requests Job");
             });
 
             var builder = new ContainerBuilder();
