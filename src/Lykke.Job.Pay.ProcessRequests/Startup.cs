@@ -147,7 +147,7 @@ namespace Lykke.Job.Pay.ProcessRequests
 
                 var persistenceManager = new LykkeLogToAzureStoragePersistenceManager(
 
-                    AzureTableStorage<LogEntity>.Create(dbLogConnectionStringManager, "BitcoinTransactionAggregatorLog", consoleLogger),
+                    AzureTableStorage<LogEntity>.Create(dbLogConnectionStringManager, "JobPayProcessRequestsLog", consoleLogger),
 
                     consoleLogger);
 
