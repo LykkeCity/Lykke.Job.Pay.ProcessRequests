@@ -104,20 +104,21 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
                                 order.ETag = "*";
                                 await _merchantOrderRequestRepository.SaveRequestAsync(order);
                             }
+                            else //LPDEV - 60
+                            {
+                                order = _address.Orders.First();
+                                if (_address.Orders.First().TransactionWaitingTime.GetRepoDateTime() < DateTime.Now)
+                                {
+                                    order.TransactionStatus = InvoiceStatus.LatePaid.ToString();
+                                    order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
+                                    order.ETag = "*";
+                                    await _merchantOrderRequestRepository.SaveRequestAsync(order);
+                                }
+                            }
 
                         }
                     }
-                    //else LPDEV-60
-                    //{
-                    //    var order = _address.Orders.First();
-                    //    if (_address.Orders.First().TransactionWaitingTime.GetRepoDateTime() < DateTime.Now)
-                    //    {
-                    //        order.TransactionStatus = InvoiceStatus.LatePaid.ToString();
-                    //        order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
-                    //        order.ETag = "*";
-                    //        await _merchantOrderRequestRepository.SaveRequestAsync(order);
-                    //    }
-                    //}
+                    
                 }
                 else
                 {
