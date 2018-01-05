@@ -51,7 +51,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
                     return;
                 }
                 await _log.WriteInfoAsync($"Handle {_address.Address} orders", _contextName, null);
-                if (_address.Orders.Any(o => o.MerchantPayRequestStatus == MerchantPayRequestStatus.New))
+                if (_address.Orders.All(o => o.MerchantPayRequestStatus == MerchantPayRequestStatus.New))
                 {
                     var amount = await GetWalletAmount();
                     if (Math.Abs(amount) < 0.00000001)
