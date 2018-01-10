@@ -57,7 +57,7 @@ namespace Lykke.Job.Pay.ProcessRequests
 
             var log = CreateLogWithSlack(services, appSettings);
 
-            builder.RegisterModule(new JobModule(appSettings.CurrentValue.ProcessRequestJob, log));
+            builder.RegisterModule(new JobModule(appSettings.CurrentValue, log));
 
             builder.AddTriggers();
 

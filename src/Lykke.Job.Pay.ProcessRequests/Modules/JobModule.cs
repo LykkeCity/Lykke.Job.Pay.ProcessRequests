@@ -21,12 +21,12 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 {
     public class JobModule : Module
     {
-        private readonly AppSettings.ProcessRequestSettings _settings;
+        private readonly AppSettings _settings;
         private readonly ILog _log;
         // NOTE: you can remove it if you don't need to use IServiceCollection extensions to register service specific dependencies
         private readonly IServiceCollection _services;
 
-        public JobModule(AppSettings.ProcessRequestSettings settings, ILog log)
+        public JobModule(AppSettings settings, ILog log)
         {
             _settings = settings;
             _log = log;
@@ -36,7 +36,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
-            builder.RegisterInstance(_settings)
+            builder.RegisterInstance(_settings.ProcessRequestJob)
                 .SingleInstance();
 
             builder.RegisterInstance(_log)
@@ -50,10 +50,10 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 
             var bitcoinAggRepository = new BitcoinAggRepository(
                         new AzureTableStorage<BitcoinAggEntity>(
-                            _settings.Db.MerchantWalletConnectionString, "BitcoinAgg",
+                            _settings.ProcessRequestJob.Db.MerchantWalletConnectionString, "BitcoinAgg",
                             null),
                         new AzureTableStorage<BitcoinHeightEntity>(
-                            _settings.Db.MerchantWalletConnectionString, "BitcoinHeight",
+                            _settings.ProcessRequestJob.Db.MerchantWalletConnectionString, "BitcoinHeight",
                             null));
             builder.RegisterInstance(bitcoinAggRepository)
                 .As<IBitcoinAggRepository>()
@@ -61,7 +61,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 
             var merchantPayRequestRepository =
             new MerchantPayRequestRepository(
-                new AzureTableStorage<MerchantPayRequest>(_settings.Db.MerchantWalletConnectionString, "MerchantPayRequest", null));
+                new AzureTableStorage<MerchantPayRequest>(_settings.ProcessRequestJob.Db.MerchantWalletConnectionString, "MerchantPayRequest", null));
 
             builder.RegisterInstance(merchantPayRequestRepository)
                 .As<IMerchantPayRequestRepository>()
@@ -69,7 +69,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
 
             var merchantOrderRequestRepository =
                 new MerchantOrderRequestRepository(
-                    new AzureTableStorage<MerchantOrderRequest>(_settings.Db.MerchantWalletConnectionString, "MerchantOrderRequest", null));
+                    new AzureTableStorage<MerchantOrderRequest>(_settings.ProcessRequestJob.Db.MerchantWalletConnectionString, "MerchantOrderRequest", null));
 
             builder.RegisterInstance(merchantOrderRequestRepository)
                 .As<IMerchantOrderRequestRepository>()
@@ -78,26 +78,26 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
             builder.RegisterType<BitcoinApi>()
                 .As<IBitcoinApi>()
                 .SingleInstance()
-                .WithParameter(TypedParameter.From(new Uri(_settings.Services.BitcoinApiService)));
+                .WithParameter(TypedParameter.From(new Uri(_settings.BitcoinApiClient.ServiceUrl)));
 
             builder.RegisterType<LykkePayServiceStoreRequestMicroService>()
                 .As<ILykkePayServiceStoreRequestMicroService>()
                 .SingleInstance()
-                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceStoreRequestMicroService)));
+                .WithParameter(TypedParameter.From(new Uri(_settings.ProcessRequestJob.Services.LykkePayServiceStoreRequestMicroService)));
 
             builder.RegisterType<LykkePayServiceGenerateAddressMicroService>()
                 .As<ILykkePayServiceGenerateAddressMicroService>()
                 .SingleInstance()
-                .WithParameter(TypedParameter.From(new Uri(_settings.Services.LykkePayServiceGenerateAddressMicroService)));
+                .WithParameter(TypedParameter.From(new Uri(_settings.ProcessRequestJob.Services.LykkePayServiceGenerateAddressMicroService)));
 
             builder.RegisterType<ProcessRequest>()
                 .As<IProcessRequest>()
                 .SingleInstance();
 
             var client = new RPCClient(
-                new NetworkCredential(_settings.Rpc.UserName,
-                    _settings.Rpc.Password),
-                new Uri(_settings.Rpc.Url), Network.GetNetwork(_settings.Rpc.Network));
+                new NetworkCredential(_settings.ProcessRequestJob.Rpc.UserName,
+                    _settings.ProcessRequestJob.Rpc.Password),
+                new Uri(_settings.ProcessRequestJob.Rpc.Url), Network.GetNetwork(_settings.ProcessRequestJob.Rpc.Network));
             builder.RegisterInstance(client)
                 .As<RPCClient>()
                 .SingleInstance();

@@ -4,6 +4,7 @@
     {
         public ProcessRequestSettings ProcessRequestJob { get; set; }
         public SlackNotificationsSettings SlackNotifications { get; set; }
+        public BincoinApiClientSettings BitcoinApiClient { get; set; }
 
         public class ProcessRequestSettings
         {
@@ -35,11 +36,15 @@
         }
     }
 
-    
+    public class BincoinApiClientSettings
+    {
+        public string ServiceUrl { get; set; }
+    }
+
+
     public class ServicesSettings
     {
         public string LykkePayServiceStoreRequestMicroService { get; set; }
-        public string BitcoinApiService { get; set; }
         public string LykkePayServiceGenerateAddressMicroService { get; set; }
     }
 
