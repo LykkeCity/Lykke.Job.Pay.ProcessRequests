@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Net.Http;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Bitcoint.Api.Client;
@@ -37,6 +38,9 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
         protected override void Load(ContainerBuilder builder)
         {
             builder.RegisterInstance(_settings.ProcessRequestJob)
+                .SingleInstance();
+
+            builder.RegisterInstance(_settings.NinjaServiceClient)
                 .SingleInstance();
 
             builder.RegisterInstance(_log)
@@ -108,6 +112,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Modules
             //    .SingleInstance();
 
             builder.Populate(_services);
+
         }
 
 

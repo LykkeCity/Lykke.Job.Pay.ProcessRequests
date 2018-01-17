@@ -39,9 +39,9 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
 
         internal static IRequestHandler Create(MerchantOrderAddress address, AppSettings.ProcessRequestSettings settings,
             IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService, ILog log,
-            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient)
+            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient, NinjaServiceClient ninjaSettings)
         {
-            return new OrderRequestHandler(address, settings, merchantOrderRequestRepository, generateAddressMicroService, log, bitcoinAggRepository, rpcClient);
+            return new OrderRequestHandler(address, settings, merchantOrderRequestRepository, generateAddressMicroService, log, bitcoinAggRepository, rpcClient, ninjaSettings);
         }
     }
 }

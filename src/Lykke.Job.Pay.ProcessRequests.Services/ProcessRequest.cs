@@ -30,11 +30,12 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
         private readonly ILykkePayServiceGenerateAddressMicroService _generateAddressMicroService;
         private readonly IBitcoinAggRepository _bitcoinAggRepository;
         private readonly RPCClient _rpcClient;
+        private readonly NinjaServiceClient _ninjaSettings;
 
         public ProcessRequest(AppSettings.ProcessRequestSettings settings, ILog log, ILykkePayServiceStoreRequestMicroService storeClient,
             IBitcoinAggRepository bitcoinRepo, IMerchantPayRequestRepository merchantPayRequestRepository, IBitcoinApi bitcoinApi,
             IMerchantOrderRequestRepository merchantOrderRequestRepository, ILykkePayServiceGenerateAddressMicroService generateAddressMicroService,
-            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient)
+            IBitcoinAggRepository bitcoinAggRepository, RPCClient rpcClient, NinjaServiceClient ninjaSettings)
         {
             _log = log;
             _storeClient = storeClient;
@@ -46,6 +47,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
             _generateAddressMicroService = generateAddressMicroService;
             _bitcoinAggRepository = bitcoinAggRepository;
             _rpcClient = rpcClient;
+            _ninjaSettings = ninjaSettings;
         }
         public async Task ProcessAsync()
         {
@@ -80,7 +82,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services
             foreach (var address in addresses)
             {
                 var handler = RequestHandler.Create(address, _settings, _merchantOrderRequestRepository, _generateAddressMicroService, _log,
-                    _bitcoinAggRepository, _rpcClient);
+                    _bitcoinAggRepository, _rpcClient, _ninjaSettings);
                 await handler.Handle();
             }
 

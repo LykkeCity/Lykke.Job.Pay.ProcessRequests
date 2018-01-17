@@ -5,6 +5,7 @@
         public ProcessRequestSettings ProcessRequestJob { get; set; }
         public SlackNotificationsSettings SlackNotifications { get; set; }
         public BincoinApiClientSettings BitcoinApiClient { get; set; }
+        public NinjaServiceClient NinjaServiceClient { get; set; }
 
         public class ProcessRequestSettings
         {
@@ -37,6 +38,11 @@
     }
 
     public class BincoinApiClientSettings
+    {
+        public string ServiceUrl { get; set; }
+    }
+
+    public class NinjaServiceClient
     {
         public string ServiceUrl { get; set; }
     }
