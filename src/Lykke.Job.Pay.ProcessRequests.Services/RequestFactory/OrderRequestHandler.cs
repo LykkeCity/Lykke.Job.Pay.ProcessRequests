@@ -117,6 +117,7 @@ namespace Lykke.Job.Pay.ProcessRequests.Services.RequestFactory
                         {
                             order.TransactionStatus = InvoiceStatus.LatePaid.ToString();
                             order.MerchantPayRequestStatus = MerchantPayRequestStatus.Failed;
+                            order.MerchantPayRequestNotification = MerchantPayRequestNotification.Error;
                             order.ETag = "*";
                             await _merchantOrderRequestRepository.SaveRequestAsync(order);
                         }
